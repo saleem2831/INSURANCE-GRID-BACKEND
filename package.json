@@ -1,0 +1,35 @@
+{
+  "name": "motor-commission-engine",
+  "version": "7.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed:insurers": "tsx src/scripts/seedInsurers.ts",
+    "validate:grids": "tsx src/scripts/validateSourceGrids.ts",
+    "migrate:insurers": "tsx src/scripts/migrateCanonicalInsurers.ts",
+    "validate:pdf-v7": "tsx src/scripts/validatePdfParsersV7.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "mongoose": "9.9.4",
+    "multer": "2.3.0",
+    "xlsx": "0.18.5",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/cors": "2.8.19",
+    "@types/express": "5.0.6",
+    "@types/multer": "2.2.0",
+    "@types/node": "26.4.1",
+    "tsx": "4.23.13",
+    "typescript": "5.9.2"
+  }
+}
