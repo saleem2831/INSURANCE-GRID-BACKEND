@@ -14,13 +14,35 @@ import gridPackageRoutes from "./routes/gridPackage.routes";
 
 const app = express();
 
-const configuredOrigins = String(process.env.CORS_ORIGINS || "").split(",").map(x => x.trim()).filter(Boolean);
-app.use(cors(configuredOrigins.length ? {
-  origin(origin, callback) {
-    if (!origin || configuredOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("Origin not allowed by CORS"));
-  }
-} : undefined));
+// const configuredOrigins = String(process.env.CORS_ORIGINS || "").split(",").map(x => x.trim()).filter(Boolean);
+// app.use(cors(configuredOrigins.length ? {
+//   origin(origin, callback) {
+//     if (!origin || configuredOrigins.includes(origin)) return callback(null, true);
+//     return callback(new Error("Origin not allowed by CORS"));
+//   }
+// } : undefined));
+// app.use(express.json({ limit: "10mb" }));
+
+const configuredOrigins = String(process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map(x => x.trim())
+  .filter(Boolean);
+
+app.use(cors(
+  configuredOrigins.length
+    ? {
+        origin(origin, callback) {
+          if (!origin || configuredOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+
+          return callback(new Error("Origin not allowed by CORS"));
+        },
+        credentials: true,
+      }
+    : undefined
+));
+
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
