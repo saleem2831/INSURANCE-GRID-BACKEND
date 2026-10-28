@@ -1,0 +1,772 @@
+{
+  "version": "2026-10-28",
+  "policyTypes": [
+    {
+      "id": 1,
+      "label": "Comprehensive Policy (Non-ZD)",
+      "code": "COMPREHENSIVE_NON_ZD",
+      "enginePolicyType": "COMP"
+    },
+    {
+      "id": 2,
+      "label": "Comprehensive Policy (ZD)",
+      "code": "COMPREHENSIVE_ZD",
+      "enginePolicyType": "COMP",
+      "nilDep": true
+    },
+    {
+      "id": 3,
+      "label": "Own Damage Policy (SAOD)",
+      "code": "SAOD",
+      "enginePolicyType": "SAOD"
+    },
+    {
+      "id": 4,
+      "label": "Liability Policy (3rd Party)",
+      "code": "THIRD_PARTY",
+      "enginePolicyType": "SATP"
+    },
+    {
+      "id": 5,
+      "label": "Bundled Policy (1+3)",
+      "code": "BUNDLED_1_3",
+      "enginePolicyType": "COMP_1_3"
+    },
+    {
+      "id": 6,
+      "label": "Bundled Policy (1+5)",
+      "code": "BUNDLED_1_5",
+      "enginePolicyType": "COMP_1_5"
+    },
+    {
+      "id": 7,
+      "label": "Bundled Policy (3+3)",
+      "code": "BUNDLED_3_3",
+      "enginePolicyType": "COMP_3_3"
+    },
+    {
+      "id": 8,
+      "label": "Bundled Policy (5+5)",
+      "code": "BUNDLED_5_5",
+      "enginePolicyType": "COMP_5_5"
+    }
+  ],
+  "motorTypes": [
+    {
+      "id": 1,
+      "label": "Two-Wheeler (2W)",
+      "code": "TWO_WHEELER",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": false
+    },
+    {
+      "id": 2,
+      "label": "Commercial with Gear (Bike)",
+      "code": "COMMERCIAL_WITH_GEAR_BIKE",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 3,
+      "label": "Commercial without Gear (Scooter)",
+      "code": "COMMERCIAL_WITHOUT_GEAR_SCOOTER",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 4,
+      "label": "Private with Gear (Bike)",
+      "code": "PRIVATE_WITH_GEAR_BIKE",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": false
+    },
+    {
+      "id": 5,
+      "label": "Private without Gear (Bike)",
+      "code": "PRIVATE_WITHOUT_GEAR_BIKE",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": false
+    },
+    {
+      "id": 6,
+      "label": "Private without Gear (Scooter)",
+      "code": "PRIVATE_WITHOUT_GEAR_SCOOTER",
+      "product": "TWO_WHEELER",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": false
+    },
+    {
+      "id": 7,
+      "label": "Private Car (Pvt. Car)",
+      "code": "PRIVATE_CAR",
+      "product": "PRIVATE_CAR",
+      "capacityDimension": "CC",
+      "vehicleAgeRequired": false
+    },
+    {
+      "id": 8,
+      "label": "Passenger Carrying Commercial Vehicle (Car PCCV)",
+      "code": "PCCV_CAR",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 9,
+      "label": "Taxi 4+1",
+      "code": "TAXI_4_1",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 10,
+      "label": "Taxi 6+1",
+      "code": "TAXI_6_1",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 11,
+      "label": "Taxi 7+1",
+      "code": "TAXI_7_1",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 12,
+      "label": "Three-Wheeler Goods (3W Goods)",
+      "code": "THREE_WHEELER_GOODS",
+      "product": "GCV",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 13,
+      "label": "Three-Wheeler Passenger (3+1) (Auto Rickshaw)",
+      "code": "THREE_WHEELER_PASSENGER",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 14,
+      "label": "Three-Wheeler Private (3+1)",
+      "code": "THREE_WHEELER_PRIVATE",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 15,
+      "label": "Light Commercial Vehicle (LCV)",
+      "code": "LCV",
+      "product": "GCV",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 16,
+      "label": "Medium Commercial Vehicle (MCV)",
+      "code": "MCV",
+      "product": "GCV",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 17,
+      "label": "Heavy Commercial Vehicle (HCV)",
+      "code": "HCV",
+      "product": "GCV",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 18,
+      "label": "Bus (BUS)",
+      "code": "BUS",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 19,
+      "label": "School Bus",
+      "code": "SCHOOL_BUS",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 20,
+      "label": "School Van",
+      "code": "SCHOOL_VAN",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 21,
+      "label": "Staff Bus",
+      "code": "STAFF_BUS",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 22,
+      "label": "Passenger Van",
+      "code": "PASSENGER_VAN",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 23,
+      "label": "Contract Carriage Bus",
+      "code": "CONTRACT_CARRIAGE_BUS",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 24,
+      "label": "Tourist Bus",
+      "code": "TOURIST_BUS",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 25,
+      "label": "Miscellaneous - Class - D Vehicles (MISC - D)",
+      "code": "MISC_D",
+      "product": "MISC_D",
+      "capacityDimension": "NONE",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 26,
+      "label": "Crane",
+      "code": "CRANE",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 27,
+      "label": "Backhoe Loader",
+      "code": "BACKHOE_LOADER",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 28,
+      "label": "Harvester",
+      "code": "HARVESTER",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 29,
+      "label": "Excavator",
+      "code": "EXCAVATOR",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 30,
+      "label": "Ambulance",
+      "code": "AMBULANCE",
+      "product": "PCV",
+      "capacityDimension": "SEATS",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 31,
+      "label": "Garbage Van",
+      "code": "GARBAGE_VAN",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 32,
+      "label": "Truck",
+      "code": "TRUCK",
+      "product": "GCV",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 33,
+      "label": "Fork Lift",
+      "code": "FORK_LIFT",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 34,
+      "label": "JCB",
+      "code": "JCB",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 35,
+      "label": "Hydraulic Crane",
+      "code": "HYDRAULIC_CRANE",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 36,
+      "label": "Tractor",
+      "code": "TRACTOR",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 37,
+      "label": "Commercial",
+      "code": "COMMERCIAL",
+      "product": "UNKNOWN",
+      "capacityDimension": "NONE",
+      "vehicleAgeRequired": true
+    },
+    {
+      "id": 38,
+      "label": "Agricultural",
+      "code": "AGRICULTURAL",
+      "product": "MISC_D",
+      "capacityDimension": "GVW",
+      "vehicleAgeRequired": true
+    }
+  ],
+  "fuelTypes": [
+    {
+      "id": 1,
+      "label": "Petrol",
+      "code": "PETROL",
+      "engineFuelType": "PETROL"
+    },
+    {
+      "id": 2,
+      "label": "Diesel",
+      "code": "DIESEL",
+      "engineFuelType": "DIESEL"
+    },
+    {
+      "id": 3,
+      "label": "Electric",
+      "code": "ELECTRIC",
+      "engineFuelType": "ELECTRIC"
+    },
+    {
+      "id": 4,
+      "label": "Hybrid",
+      "code": "HYBRID",
+      "engineFuelType": "HYBRID"
+    },
+    {
+      "id": 5,
+      "label": "CNG",
+      "code": "CNG",
+      "engineFuelType": "CNG"
+    },
+    {
+      "id": 6,
+      "label": "Petrol + CNG",
+      "code": "PETROL_CNG",
+      "engineFuelType": "PETROL_CNG"
+    },
+    {
+      "id": 7,
+      "label": "LPG",
+      "code": "LPG",
+      "engineFuelType": "LPG"
+    },
+    {
+      "id": 8,
+      "label": "Petrol + LPG",
+      "code": "PETROL_LPG",
+      "engineFuelType": "PETROL_LPG"
+    }
+  ],
+  "capacities": [
+    {
+      "id": 1,
+      "label": "Below 75 CC",
+      "code": "CC_LT_75",
+      "dimension": "CC",
+      "min": null,
+      "max": 75,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 2,
+      "label": "75 - 150 CC",
+      "code": "CC_75_150",
+      "dimension": "CC",
+      "min": 75,
+      "max": 150,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 3,
+      "label": "Below 250 CC",
+      "code": "CC_LT_250",
+      "dimension": "CC",
+      "min": null,
+      "max": 250,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 4,
+      "label": "150 - 350 CC",
+      "code": "CC_150_350",
+      "dimension": "CC",
+      "min": 150,
+      "max": 350,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 5,
+      "label": "Above 350 CC",
+      "code": "CC_GT_350",
+      "dimension": "CC",
+      "min": 350,
+      "max": null,
+      "includeMin": false,
+      "includeMax": true
+    },
+    {
+      "id": 6,
+      "label": "Below 1000 CC",
+      "code": "CC_LT_1000",
+      "dimension": "CC",
+      "min": null,
+      "max": 1000,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 7,
+      "label": "1000 - 1500 CC",
+      "code": "CC_1000_1500",
+      "dimension": "CC",
+      "min": 1000,
+      "max": 1500,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 8,
+      "label": "Above 1500 CC",
+      "code": "CC_GT_1500",
+      "dimension": "CC",
+      "min": 1500,
+      "max": null,
+      "includeMin": false,
+      "includeMax": true
+    },
+    {
+      "id": 9,
+      "label": "Below 1000 GVW",
+      "code": "GVW_LT_1000",
+      "dimension": "GVW",
+      "min": null,
+      "max": 1000,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 10,
+      "label": "Below 2500 GVW",
+      "code": "GVW_LT_2500",
+      "dimension": "GVW",
+      "min": null,
+      "max": 2500,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 11,
+      "label": "2500 - 3500 GVW",
+      "code": "GVW_2500_3500",
+      "dimension": "GVW",
+      "min": 2500,
+      "max": 3500,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 12,
+      "label": "3500 - 7500 GVW",
+      "code": "GVW_3500_7500",
+      "dimension": "GVW",
+      "min": 3500,
+      "max": 7500,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 13,
+      "label": "7500 - 12000 GVW",
+      "code": "GVW_7500_12000",
+      "dimension": "GVW",
+      "min": 7500,
+      "max": 12000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 14,
+      "label": "12000 - 20000 GVW",
+      "code": "GVW_12000_20000",
+      "dimension": "GVW",
+      "min": 12000,
+      "max": 20000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 15,
+      "label": "20000 - 40000 GVW",
+      "code": "GVW_20000_40000",
+      "dimension": "GVW",
+      "min": 20000,
+      "max": 40000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 16,
+      "label": "40000 - 50000 GVW",
+      "code": "GVW_40000_50000",
+      "dimension": "GVW",
+      "min": 40000,
+      "max": 50000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 17,
+      "label": "Above 50000 GVW",
+      "code": "GVW_GT_50000",
+      "dimension": "GVW",
+      "min": 50000,
+      "max": null,
+      "includeMin": false,
+      "includeMax": true
+    },
+    {
+      "id": 18,
+      "label": "Below 7 Seats",
+      "code": "SEATS_LT_7",
+      "dimension": "SEATS",
+      "min": null,
+      "max": 7,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 19,
+      "label": "Below 12 Seats",
+      "code": "SEATS_LT_12",
+      "dimension": "SEATS",
+      "min": null,
+      "max": 12,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 20,
+      "label": "Below 18 Seats",
+      "code": "SEATS_LT_18",
+      "dimension": "SEATS",
+      "min": null,
+      "max": 18,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 21,
+      "label": "Above 18 Seats",
+      "code": "SEATS_GT_18",
+      "dimension": "SEATS",
+      "min": 18,
+      "max": null,
+      "includeMin": false,
+      "includeMax": true
+    },
+    {
+      "id": 22,
+      "label": "10 - 30 Seats",
+      "code": "SEATS_10_30",
+      "dimension": "SEATS",
+      "min": 10,
+      "max": 30,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 23,
+      "label": "30 - 45 Seats",
+      "code": "SEATS_30_45",
+      "dimension": "SEATS",
+      "min": 30,
+      "max": 45,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 24,
+      "label": "40 - 60 Seats",
+      "code": "SEATS_40_60",
+      "dimension": "SEATS",
+      "min": 40,
+      "max": 60,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 25,
+      "label": "40 - 70 Seats",
+      "code": "SEATS_40_70",
+      "dimension": "SEATS",
+      "min": 40,
+      "max": 70,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 26,
+      "label": "45 - 60 Seats",
+      "code": "SEATS_45_60",
+      "dimension": "SEATS",
+      "min": 45,
+      "max": 60,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 27,
+      "label": "70 - 100 Seats",
+      "code": "SEATS_70_100",
+      "dimension": "SEATS",
+      "min": 70,
+      "max": 100,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 28,
+      "label": "100 - 150 Seats",
+      "code": "SEATS_100_150",
+      "dimension": "SEATS",
+      "min": 100,
+      "max": 150,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 29,
+      "label": "Below 250 WATT",
+      "code": "WATT_LT_250",
+      "dimension": "WATT",
+      "min": null,
+      "max": 250,
+      "includeMin": true,
+      "includeMax": false
+    },
+    {
+      "id": 30,
+      "label": "250 - 500 WATT",
+      "code": "WATT_250_500",
+      "dimension": "WATT",
+      "min": 250,
+      "max": 500,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 31,
+      "label": "500 - 1000 WATT",
+      "code": "WATT_500_1000",
+      "dimension": "WATT",
+      "min": 500,
+      "max": 1000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 32,
+      "label": "1000 - 2000 WATT",
+      "code": "WATT_1000_2000",
+      "dimension": "WATT",
+      "min": 1000,
+      "max": 2000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 33,
+      "label": "2000 - 5000 WATT",
+      "code": "WATT_2000_5000",
+      "dimension": "WATT",
+      "min": 2000,
+      "max": 5000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 34,
+      "label": "5000 - 15000 WATT",
+      "code": "WATT_5000_15000",
+      "dimension": "WATT",
+      "min": 5000,
+      "max": 15000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 35,
+      "label": "15000 - 50000 WATT",
+      "code": "WATT_15000_50000",
+      "dimension": "WATT",
+      "min": 15000,
+      "max": 50000,
+      "includeMin": true,
+      "includeMax": true
+    },
+    {
+      "id": 36,
+      "label": "Above 50000 WATT",
+      "code": "WATT_GT_50000",
+      "dimension": "WATT",
+      "min": 50000,
+      "max": null,
+      "includeMin": false,
+      "includeMax": true
+    }
+  ]
+}

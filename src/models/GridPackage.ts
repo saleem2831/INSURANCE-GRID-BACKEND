@@ -36,7 +36,7 @@ const GridPackageSchema = new Schema(
     validationSummary: { type: Schema.Types.Mixed, default: {} },
     notes: String
   },
-  { timestamps: true }
+  { timestamps: true, suppressReservedKeysWarning: true }
 );
 
 GridPackageSchema.index({ insuranceCompanyId: 1, version: 1, createdAt: -1 });

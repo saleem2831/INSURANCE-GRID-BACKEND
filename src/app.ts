@@ -11,38 +11,18 @@ import commissionComparisonRoutes from "./routes/commissionComparison.routes";
 import gridImportRoutes from "./routes/gridImport.routes";
 import parserProfileRoutes from "./routes/parserProfile.routes";
 import gridPackageRoutes from "./routes/gridPackage.routes";
+import motorDeveloperApiRoutes from "./routes/motorDeveloperApi.routes";
+import motorDocsRoutes from "./routes/motorDocs.routes";
 
 const app = express();
 
-// const configuredOrigins = String(process.env.CORS_ORIGINS || "").split(",").map(x => x.trim()).filter(Boolean);
-// app.use(cors(configuredOrigins.length ? {
-//   origin(origin, callback) {
-//     if (!origin || configuredOrigins.includes(origin)) return callback(null, true);
-//     return callback(new Error("Origin not allowed by CORS"));
-//   }
-// } : undefined));
-// app.use(express.json({ limit: "10mb" }));
-
-const configuredOrigins = String(process.env.CORS_ORIGINS || "")
-  .split(",")
-  .map(x => x.trim())
-  .filter(Boolean);
-
-app.use(cors(
-  configuredOrigins.length
-    ? {
-        origin(origin, callback) {
-          if (!origin || configuredOrigins.includes(origin)) {
-            return callback(null, true);
-          }
-
-          return callback(new Error("Origin not allowed by CORS"));
-        },
-        credentials: true,
-      }
-    : undefined
-));
-
+const configuredOrigins = String(process.env.CORS_ORIGINS || "").split(",").map(x => x.trim()).filter(Boolean);
+app.use(cors(configuredOrigins.length ? {
+  origin(origin, callback) {
+    if (!origin || configuredOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Origin not allowed by CORS"));
+  }
+} : undefined));
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
@@ -61,6 +41,8 @@ app.use("/api/commission", commissionComparisonRoutes);
 app.use("/api/grid-import", gridImportRoutes);
 app.use("/api/parser-profiles", parserProfileRoutes);
 app.use("/api/grid-packages", gridPackageRoutes);
+app.use("/api/v1/motor", motorDeveloperApiRoutes);
+app.use("/api-docs", motorDocsRoutes);
 
 // Serve the zero-dependency test frontend from the sibling frontend folder.
 const frontendDir = path.resolve(

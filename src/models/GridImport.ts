@@ -61,7 +61,7 @@ const GridImportSchema = new Schema(
       default: null
     }
   },
-  { timestamps: true }
+  { timestamps: true, suppressReservedKeysWarning: true }
 );
 
 GridImportSchema.index({ insuranceCompanyId: 1, version: 1, fileHash: 1 });

@@ -40,7 +40,7 @@ const GridDocumentSchema = new Schema(
     errors: { type: [String], default: [] },
     preview: { type: Schema.Types.Mixed, default: {} }
   },
-  { timestamps: true }
+  { timestamps: true, suppressReservedKeysWarning: true }
 );
 
 GridDocumentSchema.index({ packageId: 1, fileHash: 1 });
