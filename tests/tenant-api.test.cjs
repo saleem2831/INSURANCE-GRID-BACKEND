@@ -44,8 +44,11 @@ test('tenant package selection excludes another tenant owner and unrelated insur
    assert.equal(selected.has(companyB),false);
  }finally{TenantGridGrant.find=originalGrant;GridPackage.find=originalPackage}
 });
-test('direct compare service fails closed without trusted tenant context',async()=>{
- await assert.rejects(compareCommissions({product:'GCV',policyDate:'2026-09-13',rtoCode:'MH-01'}),/Tenant context is required/);
+test('direct compare rejects missing context but accepts authenticated platform-admin context',async()=>{
+ // Deliberately give an invalid product to stop before any MongoDB query.
+ // If admin authentication was dropped, the old implementation threw 403 here.
+ await assert.rejects(compareCommissions({product:''}),/Authenticated admin or tenant context is required/);
+ await assert.rejects(compareCommissions({product:''}, {kind:'ADMIN'}), /product is required/);
 });
 test('HTTP: tenant cannot access admin-only package/files; administrator and tenant sessions work',async()=>{
  const original=Tenant.findOne;
@@ -77,5 +80,48 @@ test('HTTP: tenant cannot access admin-only package/files; administrator and ten
  }finally{
   Tenant.findOne=original;
   await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+
+test('HTTP: administrator and tenant contexts reach BOTH compare routes without losing credentials',async()=>{
+ const originalTenantFind=Tenant.findOne;
+ const comparisonService=require('../dist/services/commissionComparison.service.js');
+ const originalCompare=comparisonService.compareCommissions;
+ const contexts=[];
+ Tenant.findOne=(query)=>({lean:async()=>query.apiKeyHash===service.tenantKeyHash(tenantKey)
+   ? {_id:tenantId,code:'BROKER_ALPHA',name:'Broker Alpha',active:true} : null});
+ comparisonService.compareCommissions=async(_policy,access)=>{
+   contexts.push(access);
+   return {results:[],insurersChecked:0,matched:0};
+ };
+ const server=app.listen(0,'127.0.0.1');
+ try{
+   await new Promise(resolve=>server.once('listening',resolve));
+   const url='http://127.0.0.1:'+server.address().port;
+   const post=async(path,key,body)=>{
+     const headers={'Content-Type':'application/json'};
+     if(key) headers['x-api-key']=key;
+     const response=await fetch(url+path,{method:'POST',headers,body:JSON.stringify(body)});
+     return {status:response.status,body:await response.json()};
+   };
+   const developerPayload={policy_type_id:1,motor_type_id:17,fuel_type_id:2,capacity_value:15000,policy_date:'2026-09-13',rto:'MH-01',vehicle_make:'TATA',vehicle_age:3,ncb:0};
+   const legacyPayload={product:'GCV',policyDate:'2026-09-13',rtoCode:'MH-01',vehicleAge:3,gvw:15000,make:'TATA',policyType:'COMP',ncb:0};
+   const adminKey=process.env.TENANT_ADMIN_API_KEY;
+   assert.equal((await post('/api/v1/motor/compare',adminKey,developerPayload)).status,200);
+   assert.equal((await post('/api/commission/compare',adminKey,legacyPayload)).status,200);
+   assert.deepEqual(contexts.slice(0,2),[{kind:'ADMIN'},{kind:'ADMIN'}]);
+   assert.equal((await post('/api/v1/motor/compare',tenantKey,developerPayload)).status,200);
+   assert.equal((await post('/api/commission/compare',tenantKey,legacyPayload)).status,200);
+   assert.equal(contexts[2].kind,'TENANT');
+   assert.equal(contexts[2].tenantId,tenantId);
+   assert.equal(contexts[3].kind,'TENANT');
+   assert.equal(contexts[3].tenantId,tenantId);
+   assert.equal((await post('/api/v1/motor/compare',undefined,developerPayload)).status,401);
+   assert.equal((await post('/api/commission/compare',undefined,legacyPayload)).status,401);
+ }finally{
+   Tenant.findOne=originalTenantFind;
+   comparisonService.compareCommissions=originalCompare;
+   await new Promise(resolve=>server.close(resolve));
  }
 });

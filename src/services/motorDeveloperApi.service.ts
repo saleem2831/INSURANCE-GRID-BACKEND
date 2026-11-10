@@ -1,3 +1,4 @@
+import type {TenantAuth} from "./tenantAccess.service";
 /** Developer-facing adapter for legacy V7 deterministic insurer comparison. */
 import motorMaster from "../config/motorInputMaster.json";
 
@@ -198,7 +199,7 @@ export function validateMotorRequest(raw: unknown) {
   return { valid: true, errors, warnings, normalized, engineInput };
 }
 
-export async function compareMotorRequest(input: unknown, access: { tenantId?: string } = {}) {
+export async function compareMotorRequest(input: unknown, access?: TenantAuth) {
   const validated = validateMotorRequest(input);
   if (!validated.valid || !validated.engineInput) return { status: 422 as const, body: { success: false, error: "VALIDATION_FAILED", ...validated } };
   const { compareCommissions } = await import("./commissionComparison.service");

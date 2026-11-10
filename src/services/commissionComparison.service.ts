@@ -9,7 +9,7 @@ import { deriveStateFromRto, normalizeRtoCode, normalizeStateName } from "./cano
 import { canonicalCompanyCode, INSURER_CODES } from "../config/insurers";
 import { syncInsurerCatalog } from "./insurerCatalog.service";
 import { mapWithConcurrency } from "../utils/asyncPool";
-import {getTenantPackageMap,tenancyEnabled} from "./tenantAccess.service";
+import {getTenantPackageMap,tenancyEnabled, type TenantAuth} from "./tenantAccess.service";
 
 export interface CommissionCompareInput {
   product: string;
@@ -412,9 +412,18 @@ function evaluatePayout(result: any, policy: any) {
   return { valid: true, composite: false, percentage, basis: result?.basis ?? null, basisAmount: amountBase, commissionAmount, payoutComponents: [], percentageDisplay: `${percentage}%` };
 }
 
-export async function compareCommissions(input: CommissionCompareInput, access: { tenantId?: string } = {}) {
-  if (tenancyEnabled() && !access.tenantId) { const err:any=new Error("Tenant context is required in tenant mode"); err.statusCode=403; throw err; }
-  const allowed=access.tenantId?await getTenantPackageMap(access.tenantId):null;
+export async function compareCommissions(input: CommissionCompareInput, access?: TenantAuth) {
+  // Only authenticated context supplied by tenantFirewall is allowed in tenant mode.
+  // An ADMIN compares platform-shared grids; a TENANT compares explicitly granted grids.
+  // The tenant ID must never be accepted from request bodies, URL parameters, or headers.
+  if (tenancyEnabled() && (!access || (access.kind === "TENANT" && !access.tenantId))) {
+    const err: any = new Error("Authenticated admin or tenant context is required in tenant mode");
+    err.statusCode = 403;
+    throw err;
+  }
+  const allowed = tenancyEnabled() && access?.kind === "TENANT"
+    ? await getTenantPackageMap(access.tenantId)
+    : null;
   const product = normalizeProduct(input.product);
   if (!product) throw new Error("product is required");
   const validation = validateRequiredComparisonFields(product, input);

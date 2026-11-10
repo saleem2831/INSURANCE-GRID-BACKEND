@@ -16,11 +16,18 @@ router.post("/validate", (req, res) => {
 router.post("/compare", async (req, res) => {
   try {
     const auth=(req as TenantRequest).tenantAuth;
-    const result = await compareMotorRequest(req.body,auth?.kind==="TENANT"?{tenantId:auth.tenantId}:{});
+    const result = await compareMotorRequest(req.body,auth);
     return res.status(result.status).json(result.body);
-  } catch(error) {
-    console.error("Developer API comparison failed:", error);
-    return res.status(500).json({ success: false, error: "ENGINE_ERROR", message: "Unable to complete commission comparison. Check backend logs." });
+  } catch(error: any) {
+    const status = Number(error?.statusCode);
+    const httpStatus = Number.isInteger(status) && status >= 400 && status < 500 ? status : 500;
+    if (httpStatus === 500) console.error("Developer API comparison failed:", error);
+    return res.status(httpStatus).json({
+      success: false,
+      error: httpStatus === 403 ? "FORBIDDEN" : httpStatus === 400 ? "VALIDATION_FAILED" : "ENGINE_ERROR",
+      message: httpStatus === 500 ? "Unable to complete commission comparison. Check backend logs." : String(error?.message || "Request rejected"),
+      ...(httpStatus === 400 && error?.details ? { details: error.details } : {})
+    });
   }
 });
 export default router;
