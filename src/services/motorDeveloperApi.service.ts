@@ -198,10 +198,10 @@ export function validateMotorRequest(raw: unknown) {
   return { valid: true, errors, warnings, normalized, engineInput };
 }
 
-export async function compareMotorRequest(input: unknown) {
+export async function compareMotorRequest(input: unknown, access: { tenantId?: string } = {}) {
   const validated = validateMotorRequest(input);
   if (!validated.valid || !validated.engineInput) return { status: 422 as const, body: { success: false, error: "VALIDATION_FAILED", ...validated } };
   const { compareCommissions } = await import("./commissionComparison.service");
-  const comparison = await compareCommissions(validated.engineInput as any);
+  const comparison = await compareCommissions(validated.engineInput as any, access);
   return { status: 200 as const, body: { success: true, data: comparison, normalized: validated.normalized, warnings: validated.warnings } };
 }

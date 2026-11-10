@@ -56,6 +56,7 @@ router.post("/preview", upload.array("files", 50), async (req, res) => {
     })();
     const data = await previewGridPackage({
       insuranceCompanyId: req.body.insuranceCompanyId || undefined,
+      ownerTenantId: req.body.ownerTenantId || undefined,
       companyCode: req.body.companyCode || undefined,
       companyName: req.body.companyName || undefined,
       version: req.body.version,

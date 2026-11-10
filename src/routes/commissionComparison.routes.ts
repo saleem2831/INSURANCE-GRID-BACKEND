@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { type TenantRequest } from "../services/tenantAccess.service";
 import { compareCommissions } from "../services/commissionComparison.service";
 import { PRODUCT_REQUIRED_FIELDS, getComparisonInputSchema } from "../services/comparisonInputValidation";
 
@@ -14,7 +15,8 @@ router.get("/input-schema/:product", (req, res) => {
 router.post("/compare", async (req, res) => {
   try {
     if (!req.body.product) return res.status(400).json({ success: false, message: "product is required" });
-    const comparison = await compareCommissions(req.body);
+    const auth=(req as TenantRequest).tenantAuth;
+    const comparison = await compareCommissions(req.body, auth?.kind==="TENANT"?{tenantId:auth.tenantId}:{});
     return res.json({ success: true, data: comparison });
   } catch (error: any) {
     console.error("Commission comparison error:", error);

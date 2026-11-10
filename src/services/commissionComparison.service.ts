@@ -9,6 +9,7 @@ import { deriveStateFromRto, normalizeRtoCode, normalizeStateName } from "./cano
 import { canonicalCompanyCode, INSURER_CODES } from "../config/insurers";
 import { syncInsurerCatalog } from "./insurerCatalog.service";
 import { mapWithConcurrency } from "../utils/asyncPool";
+import {getTenantPackageMap,tenancyEnabled} from "./tenantAccess.service";
 
 export interface CommissionCompareInput {
   product: string;
@@ -411,7 +412,9 @@ function evaluatePayout(result: any, policy: any) {
   return { valid: true, composite: false, percentage, basis: result?.basis ?? null, basisAmount: amountBase, commissionAmount, payoutComponents: [], percentageDisplay: `${percentage}%` };
 }
 
-export async function compareCommissions(input: CommissionCompareInput) {
+export async function compareCommissions(input: CommissionCompareInput, access: { tenantId?: string } = {}) {
+  if (tenancyEnabled() && !access.tenantId) { const err:any=new Error("Tenant context is required in tenant mode"); err.statusCode=403; throw err; }
+  const allowed=access.tenantId?await getTenantPackageMap(access.tenantId):null;
   const product = normalizeProduct(input.product);
   if (!product) throw new Error("product is required");
   const validation = validateRequiredComparisonFields(product, input);
@@ -429,7 +432,8 @@ export async function compareCommissions(input: CommissionCompareInput) {
   await syncInsurerCatalog();
   const companies = await InsuranceCompany.find({
     active: true,
-    code: { $in: INSURER_CODES }
+    code: { $in: INSURER_CODES },
+    ...(allowed ? { _id: { $in: [...allowed.keys()] } } : {})
   }).lean();
   const catalogOrder = new Map(INSURER_CODES.map((code, index) => [code, index]));
   companies.sort((a: any, b: any) =>
@@ -445,8 +449,10 @@ export async function compareCommissions(input: CommissionCompareInput) {
       // Keep the existing deterministic evaluation flow intact while each insurer
       // runs independently and asynchronously. `continue` exits this one-item loop.
       for (const company of [catalogCompany]) {
+    const permittedPackageIds=allowed?.get(String(company._id)) || [];
     const activePackage: any = await GridPackage.findOne({
       insuranceCompanyId: company._id,
+      ...(allowed ? { _id: { $in: permittedPackageIds } } : { ownerTenantId: null }),
       status: "ACTIVE",
       effectiveFrom: { $lte: date },
       $or: [{ effectiveTo: null }, { effectiveTo: { $gte: date } }]
@@ -454,7 +460,7 @@ export async function compareCommissions(input: CommissionCompareInput) {
 
     let grids: any[] = [];
     if (activePackage?.gridId) grids = await CommissionGrid.find({ _id: activePackage.gridId, insuranceCompanyId: company._id, status: "ACTIVE" }).lean();
-    else grids = await CommissionGrid.find({
+    else if (!allowed) grids = await CommissionGrid.find({
       insuranceCompanyId: company._id,
       status: "ACTIVE",
       packageId: null,

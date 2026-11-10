@@ -3,11 +3,13 @@ import "dotenv/config";
 import app from "./app";
 import { connectDatabase } from "./config/database";
 import { syncInsurerCatalog } from "./services/insurerCatalog.service";
+import {validateTenantConfig} from "./services/tenantAccess.service";
 
 const PORT = Number(process.env.PORT) || 4000;
 
 async function start() {
   try {
+    validateTenantConfig();
     await connectDatabase();
     await syncInsurerCatalog();
     console.log("Insurer catalog synchronized from src/config/insurers.json");

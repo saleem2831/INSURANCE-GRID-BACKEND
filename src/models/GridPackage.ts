@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 
 const GridPackageSchema = new Schema(
   {
+    ownerTenantId: { type: Schema.Types.ObjectId, ref: "Tenant", default: null, index: true },
     insuranceCompanyId: {
       type: Schema.Types.ObjectId,
       ref: "InsuranceCompany",

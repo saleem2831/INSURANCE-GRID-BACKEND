@@ -35,12 +35,24 @@ export function getMotorOpenApiSpec(baseUrl?: string) {
     "/api/commission/compare":{post:{tags:["Legacy V7"],summary:"Original V7 comparison endpoint",description:"Uses the original canonical DTO, not the numeric-ID developer DTO",requestBody:{required:true,content:{"application/json":{example:{product:"GCV",policyDate:"2026-09-13",policyType:"COMP",gvw:15000,rtoCode:"MH-01",make:"TATA",vehicleAge:3,ncb:0}}}},responses:{200:response("V7 comparison results")}}},
     "/api/commission/input-schema/{product}":{get:{tags:["Legacy V7"],summary:"Original V7 product input schema",parameters:[{name:"product",in:"path",required:true,schema:{type:"string",enum:["PRIVATE_CAR","TWO_WHEELER","GCV","PCV"]}}],responses:{200:response("V7 minimum input requirements")}}}
   };
+  // All administrative and payout APIs use an HTTP x-api-key when tenancy is enabled.
+  // Tenant scope is inferred exclusively from the credential, never from a request tenantId.
+  const securedPost={security:[{TenantApiKey:[]}]} as any;
+  paths["/api/v1/tenants/session"]={get:{tags:["Tenant"],summary:"Identify current workspace / administrator",security:[{TenantApiKey:[]}],responses:{200:response("Current workspace"),401:response("Invalid API key")}}};
+  paths["/api/v1/tenants/tenant/visible-packages"]={get:{tags:["Tenant"],summary:"Only packages assigned to the authenticated tenant",security:[{TenantApiKey:[]}],responses:{200:response("Tenant's approved insurer packages")}}};
+  paths["/api/v1/tenants"]={get:{tags:["Tenant Admin"],summary:"List tenants (administrator only)",security:[{TenantApiKey:[]}],responses:{200:response("Tenants")}},post:{tags:["Tenant Admin"],summary:"Create tenant and issue one-time API key",security:[{TenantApiKey:[]}],requestBody:{required:true,content:{"application/json":{example:{code:"BROKER_ALPHA",name:"Broker Alpha"}}}},responses:{201:response("One-time API key"),409:response("Duplicate code")}}};
+  paths["/api/v1/tenants/{tenantId}/grants"]={get:{tags:["Tenant Admin"],summary:"Tenant package grants",security:[{TenantApiKey:[]}],parameters:[{name:"tenantId",in:"path",required:true,schema:{type:"string"}}],responses:{200:response("Grants")}},post:{tags:["Tenant Admin"],summary:"Assign an ACTIVE insurer package to one tenant",security:[{TenantApiKey:[]}],parameters:[{name:"tenantId",in:"path",required:true,schema:{type:"string"}}],requestBody:{required:true,content:{"application/json":{example:{packageId:"507f1f77bcf86cd799439011"}}}},responses:{200:response("Grant created"),403:response("Tenant ownership mismatch"),409:response("Overlapping package")}}};
+  paths["/api/v1/tenants/{tenantId}/rotate-key"]={post:{tags:["Tenant Admin"],summary:"Rotate tenant credential (old key becomes invalid)",security:[{TenantApiKey:[]}],parameters:[{name:"tenantId",in:"path",required:true,schema:{type:"string"}}],responses:{200:response("New one-time API key")}}};
+  paths["/api/v1/tenants/{tenantId}"]={patch:{tags:["Tenant Admin"],summary:"Enable/disable tenant access",security:[{TenantApiKey:[]}],parameters:[{name:"tenantId",in:"path",required:true,schema:{type:"string"}}],requestBody:{required:true,content:{"application/json":{example:{active:false}}}},responses:{200:response("Tenant state updated")}}};
+  paths["/api/v1/tenants/{tenantId}/grants/{grantId}"]={delete:{tags:["Tenant Admin"],summary:"Revoke one tenant package grant",security:[{TenantApiKey:[]}],parameters:[{name:"tenantId",in:"path",required:true,schema:{type:"string"}},{name:"grantId",in:"path",required:true,schema:{type:"string"}}],responses:{200:response("Grant revoked")}}};
+  paths["/api/v1/tenants/packages/available"]={get:{tags:["Tenant Admin"],summary:"List all ACTIVE packages for assignment",security:[{TenantApiKey:[]}],responses:{200:response("Package list")}}};
+  for(const path of ["/api/v1/motor/compare","/api/v1/motor/validate","/api/commission/compare"]) if(paths[path]?.post) Object.assign(paths[path].post, securedPost);
   return {
     openapi:"3.0.3",
-    info:{title:"Motor Commission Platform — Developer API",version:"8.0.0",description:"Validated input, dynamic dropdowns and deterministic source-audited comparisons. IDs in motorInputMaster.json are not MongoDB ObjectIds."},
+    info:{title:"Motor Commission Platform — Developer API",version:"9.0.0",description:"Validated input, dynamic dropdowns and deterministic source-audited comparisons. IDs in motorInputMaster.json are not MongoDB ObjectIds."},
     servers:[{url:baseUrl || "http://localhost:4000"}],
-    tags:[{name:"Catalogue"},{name:"Validation"},{name:"Compare"},{name:"Legacy V7"}],
+    tags:[{name:"Catalogue"},{name:"Validation"},{name:"Compare"},{name:"Legacy V7"},{name:"Tenant"},{name:"Tenant Admin"}],
     paths,
-    components:{schemas:{MotorInput:inputSchema}}
+    components:{securitySchemes:{TenantApiKey:{type:"apiKey",in:"header",name:"x-api-key",description:"Required when TENANCY_ENABLED=true. An administrator key can manage packages; a tenant key can access only its own grants."}},schemas:{MotorInput:inputSchema}}
   };
 }

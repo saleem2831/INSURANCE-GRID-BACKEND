@@ -13,6 +13,8 @@ import parserProfileRoutes from "./routes/parserProfile.routes";
 import gridPackageRoutes from "./routes/gridPackage.routes";
 import motorDeveloperApiRoutes from "./routes/motorDeveloperApi.routes";
 import motorDocsRoutes from "./routes/motorDocs.routes";
+import tenantRoutes from "./routes/tenant.routes";
+import {tenantFirewall} from "./services/tenantAccess.service";
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.use("/api", tenantFirewall);
+app.use("/api/v1/tenants", tenantRoutes);
 app.use("/api/insurance-companies", insuranceCompanyRoutes);
 app.use("/api/commission-grids", commissionGridRoutes);
 app.use("/api", commissionRuleRoutes);

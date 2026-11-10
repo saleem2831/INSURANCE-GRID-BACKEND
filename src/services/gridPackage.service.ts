@@ -25,6 +25,8 @@ import { extractPdfText } from "../imports/pdfReader";
 import { parsePdfForCompany, tryGetPdfParserForCompany } from "../imports/pdfParserRegistry";
 import { canonicalCompanyCode } from "../config/insurers";
 import { mapWithConcurrency } from "../utils/asyncPool";
+import TenantGridGrant from "../models/TenantGridGrant";
+import Tenant from "../models/Tenant";
 
 export interface PackageUploadFile {
   originalname: string;
@@ -49,6 +51,7 @@ interface PackageSelector {
 }
 
 interface PreviewPackageInput extends PackageSelector {
+  ownerTenantId?: string;
   version: string;
   effectiveFrom: string;
   effectiveTo?: string;
@@ -377,7 +380,10 @@ export async function previewGridPackage(input: PreviewPackageInput) {
 
   const hashes = input.files.map(f => calculateFileHash(f.buffer));
   const pHash = packageHash(hashes);
-  const exact = await GridPackage.findOne({ insuranceCompanyId: company._id, version, packageHash: pHash, status: { $ne: "FAILED" } }).lean();
+  const ownerTenantId=input.ownerTenantId || null;
+  if (ownerTenantId && !mongoose.Types.ObjectId.isValid(ownerTenantId)) throw new Error("Invalid ownerTenantId");
+  if (ownerTenantId && !(await Tenant.exists({ _id:ownerTenantId, active:true }))) throw new Error("ownerTenantId must reference an ACTIVE tenant");
+  const exact = await GridPackage.findOne({ insuranceCompanyId: company._id, ownerTenantId, version, packageHash: pHash, status: { $ne: "FAILED" } }).lean();
   if (exact) {
     return {
       duplicate: true,
@@ -386,11 +392,12 @@ export async function previewGridPackage(input: PreviewPackageInput) {
       message: "PACKAGE EXISTS: the same company/version and exact document set has already been uploaded."
     };
   }
-  const previous = await GridPackage.findOne({ insuranceCompanyId: company._id, version, status: { $ne: "FAILED" } }).sort({ createdAt: -1 }).lean();
+  const previous = await GridPackage.findOne({ insuranceCompanyId: company._id, ownerTenantId, version, status: { $ne: "FAILED" } }).sort({ createdAt: -1 }).lean();
   const action = previous ? "REPLACE" : "CREATE";
 
   const pkg: any = await GridPackage.create({
     insuranceCompanyId: company._id,
+    ownerTenantId,
     name: input.name || `${company.name} ${version}`,
     packageHash: pHash,
     action,
@@ -525,6 +532,7 @@ function overlapQuery(pkg: any): any {
   const end = pkg.effectiveTo || new Date("9999-12-31T23:59:59.999Z");
   return {
     insuranceCompanyId: pkg.insuranceCompanyId,
+    ownerTenantId: pkg.ownerTenantId || null,
     status: "ACTIVE",
     _id: { $ne: pkg._id },
     effectiveFrom: { $lte: end },
@@ -668,7 +676,7 @@ export async function listGridPackages(query: { companyCode?: string; status?: s
     if (!company) return [];
     filter.insuranceCompanyId = company._id;
   }
-  const rows: any[] = await GridPackage.find(filter).populate("insuranceCompanyId", "code name shortName active").sort({ createdAt: -1 }).lean();
+  const rows: any[] = await GridPackage.find(filter).populate("insuranceCompanyId", "code name shortName active").populate("ownerTenantId", "code name").sort({ createdAt: -1 }).lean();
   return Promise.all(rows.map(async row => ({
     ...row,
     documents: await GridDocument.find({ packageId: row._id }).select("fileName relativePath fileType role productScope required status rulesDetected rtoMappingsDetected").sort({ createdAt: 1 }).lean()
@@ -677,7 +685,7 @@ export async function listGridPackages(query: { companyCode?: string; status?: s
 
 export async function getGridPackage(packageId: string) {
   if (!mongoose.Types.ObjectId.isValid(packageId)) throw new Error("Invalid packageId");
-  const pkg: any = await GridPackage.findById(packageId).populate("insuranceCompanyId", "code name shortName active").lean();
+  const pkg: any = await GridPackage.findById(packageId).populate("insuranceCompanyId", "code name shortName active").populate("ownerTenantId", "code name").lean();
   if (!pkg) throw new Error("Grid package not found");
   const docs: any[] = await GridDocument.find({ packageId }).sort({ createdAt: 1 }).lean();
   return packageResponse(pkg, docs);
@@ -709,6 +717,7 @@ export async function deleteGridPackage(packageId: string, force = false) {
   const docs: any[] = await GridDocument.find({ packageId: pkg._id });
   await GridIR.deleteMany({ packageId: pkg._id });
   await GridDocument.deleteMany({ packageId: pkg._id });
+  await TenantGridGrant.deleteMany({ packageId: pkg._id });
   await GridPackage.findByIdAndDelete(pkg._id);
   let deletedFiles = 0;
   for (const doc of docs) {

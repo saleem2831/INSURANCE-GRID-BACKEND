@@ -1,4 +1,5 @@
 import { Router } from "express";
+import {type TenantRequest} from "../services/tenantAccess.service";
 import { compareMotorRequest, getInputCatalog, getMotorFormConfig, validateMotorRequest } from "../services/motorDeveloperApi.service";
 
 const router = Router();
@@ -14,7 +15,8 @@ router.post("/validate", (req, res) => {
 });
 router.post("/compare", async (req, res) => {
   try {
-    const result = await compareMotorRequest(req.body);
+    const auth=(req as TenantRequest).tenantAuth;
+    const result = await compareMotorRequest(req.body,auth?.kind==="TENANT"?{tenantId:auth.tenantId}:{});
     return res.status(result.status).json(result.body);
   } catch(error) {
     console.error("Developer API comparison failed:", error);
