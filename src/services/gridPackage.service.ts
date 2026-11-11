@@ -27,6 +27,7 @@ import { canonicalCompanyCode } from "../config/insurers";
 import { mapWithConcurrency } from "../utils/asyncPool";
 import TenantGridGrant from "../models/TenantGridGrant";
 import Tenant from "../models/Tenant";
+import { gridReviewState, businessDateKey, choosePackageForDate } from "./gridVersionPolicy.service";
 
 export interface PackageUploadFile {
   originalname: string;
@@ -376,7 +377,8 @@ export async function previewGridPackage(input: PreviewPackageInput) {
   const company = await resolveCompany(input);
   const version = normalizeCode(input.version);
   if (!version) throw new Error("version is required");
-  const { effectiveFrom, effectiveTo } = parseDates(input.effectiveFrom, input.effectiveTo);
+  if (input.effectiveTo) throw Object.assign(new Error("effectiveTo is retired for new packages. Provide Effective From only; newer approved packages supersede old versions."), { statusCode: 400 });
+  const { effectiveFrom, effectiveTo } = parseDates(input.effectiveFrom);
 
   const hashes = input.files.map(f => calculateFileHash(f.buffer));
   const pHash = packageHash(hashes);
@@ -471,6 +473,7 @@ function packageResponse(pkg: any, docs: any[], extra: Record<string, any> = {})
     warnings: pkg.warnings,
     errors: pkg.errors,
     validationSummary: pkg.validationSummary,
+    review: gridReviewState(pkg.effectiveFrom),
     canCommit: pkg.status === "VALIDATED" && !(pkg.errors || []).length,
     documents: docs.map((d: any) => ({
       id: d._id,
@@ -528,16 +531,40 @@ export async function updateGridDocument(
   return revalidateGridPackage(packageId);
 }
 
-function overlapQuery(pkg: any): any {
-  const end = pkg.effectiveTo || new Date("9999-12-31T23:59:59.999Z");
-  return {
-    insuranceCompanyId: pkg.insuranceCompanyId,
-    ownerTenantId: pkg.ownerTenantId || null,
-    status: "ACTIVE",
-    _id: { $ne: pkg._id },
-    effectiveFrom: { $lte: end },
-    $or: [{ effectiveTo: null }, { effectiveTo: { $gte: pkg.effectiveFrom } }]
-  };
+/** A small, MongoDB-transactional publication step. All rules are committed as VALIDATED first. */
+export async function activateCommittedPackage(packageId: string) {
+  const session = await mongoose.startSession();
+  try {
+    let response: any;
+    await session.withTransaction(async () => {
+      const pkg: any = await GridPackage.findById(packageId).session(session);
+      if (!pkg || !pkg.gridId) throw new Error("Committed grid package not found");
+      if (pkg.status === "ACTIVE") {
+        response = { alreadyCommitted: true, activated: true, packageId: pkg._id, gridId: pkg.gridId, status: pkg.status };
+        return;
+      }
+      if (pkg.status !== "VALIDATED") throw new Error("Only VALIDATED packages can be activated");
+      // Latest effective-from wins at quote-time. Expire other live publications in
+      // the SAME insurer + tenant ownership scope; keep old rules for history.
+      const ownerTenantId = pkg.ownerTenantId || null;
+      const older: any[] = await GridPackage.find({
+        insuranceCompanyId: pkg.insuranceCompanyId, ownerTenantId,
+        status: "ACTIVE", _id: { $ne: pkg._id }
+      }).session(session);
+      if (older.length) {
+        await GridPackage.updateMany({ _id: { $in: older.map(p => p._id) } }, { $set: { status: "EXPIRED" } }, { session });
+        const oldGrids = older.map(p => p.gridId).filter(Boolean);
+        if (oldGrids.length) await CommissionGrid.updateMany({ _id: { $in: oldGrids } }, { $set: { status: "EXPIRED" } }, { session });
+      }
+      await CommissionGrid.updateOne({ _id: pkg.gridId }, { $set: { status: "ACTIVE" } }, { session });
+      pkg.status = "ACTIVE";
+      await pkg.save({ session });
+      response = { alreadyCommitted: true, activated: true, packageId: pkg._id, gridId: pkg.gridId, status: pkg.status, supersededCount: older.length };
+    });
+    return response;
+  } finally {
+    await session.endSession();
+  }
 }
 
 export async function commitGridPackage(packageId: string, activate = true) {
@@ -545,18 +572,7 @@ export async function commitGridPackage(packageId: string, activate = true) {
   let pkg: any = await GridPackage.findById(packageId);
   if (!pkg) throw new Error("Grid package not found");
   if (pkg.gridId) {
-    if (activate && pkg.status === "VALIDATED") {
-      const oldPackages: any[] = await GridPackage.find(overlapQuery(pkg));
-      for (const old of oldPackages) {
-        old.status = "EXPIRED";
-        await old.save();
-        if (old.gridId) await CommissionGrid.findByIdAndUpdate(old.gridId, { status: "EXPIRED" });
-      }
-      await CommissionGrid.findByIdAndUpdate(pkg.gridId, { status: "ACTIVE" });
-      pkg.status = "ACTIVE";
-      await pkg.save();
-      return { alreadyCommitted: true, activated: true, packageId: pkg._id, gridId: pkg.gridId, status: pkg.status };
-    }
+    if (activate && pkg.status === "VALIDATED") return activateCommittedPackage(String(pkg._id));
     return { alreadyCommitted: true, activated: pkg.status === "ACTIVE", packageId: pkg._id, gridId: pkg.gridId, status: pkg.status };
   }
 
@@ -569,16 +585,8 @@ export async function commitGridPackage(packageId: string, activate = true) {
   if (!company) throw new Error("Insurance company not found");
 
   let grid: any = null;
+  let preparedResponse: any = null;
   try {
-    if (activate) {
-      const oldPackages: any[] = await GridPackage.find(overlapQuery(pkg));
-      for (const old of oldPackages) {
-        old.status = "EXPIRED";
-        await old.save();
-        if (old.gridId) await CommissionGrid.findByIdAndUpdate(old.gridId, { status: "EXPIRED" });
-      }
-    }
-
     grid = await CommissionGrid.create({
       insuranceCompanyId: company._id,
       packageId: pkg._id,
@@ -587,7 +595,7 @@ export async function commitGridPackage(packageId: string, activate = true) {
       logicalKey: "COMPANY_PACKAGE",
       effectiveFrom: pkg.effectiveFrom,
       effectiveTo: pkg.effectiveTo,
-      status: activate ? "ACTIVE" : "VALIDATED",
+      status: "VALIDATED",
       source: {
         fileName: `${company.code}-${pkg.version}-PACKAGE`,
         fileUrl: `/api/grid-packages/${pkg._id}`,
@@ -636,15 +644,11 @@ export async function commitGridPackage(packageId: string, activate = true) {
 
     await GridDocument.updateMany({ packageId: pkg._id, status: "VALIDATED" }, { status: "IMPORTED" });
     pkg.gridId = grid._id;
-    pkg.status = activate ? "ACTIVE" : "VALIDATED";
+    pkg.status = "VALIDATED";
     pkg.totalRules = validation.rules.length;
     pkg.totalRtoMappings = validation.mappings.length;
     await pkg.save();
-    if (pkg.replacesPackageId) {
-      const old = await GridPackage.findById(pkg.replacesPackageId);
-      if (old && old.status !== "ACTIVE") old.status = "EXPIRED", await old.save();
-    }
-    return {
+    preparedResponse = {
       alreadyCommitted: false,
       packageId: pkg._id,
       gridId: grid._id,
@@ -665,6 +669,10 @@ export async function commitGridPackage(packageId: string, activate = true) {
     }
     throw error;
   }
+  // Do not delete an already prepared VALIDATED package if publication fails.
+  // The admin can retry /commit after the Atlas transaction is available.
+  if (activate) return { ...(await activateCommittedPackage(String(pkg._id))), documentsImported: validation.docs.length, rulesImported: validation.rules.length, rtoMappingsImported: validation.mappings.length, productCoverage: pkg.productCoverage, warnings: pkg.warnings };
+  return preparedResponse;
 }
 
 export async function listGridPackages(query: { companyCode?: string; status?: string; version?: string }) {
@@ -677,8 +685,29 @@ export async function listGridPackages(query: { companyCode?: string; status?: s
     filter.insuranceCompanyId = company._id;
   }
   const rows: any[] = await GridPackage.find(filter).populate("insuranceCompanyId", "code name shortName active").populate("ownerTenantId", "code name").sort({ createdAt: -1 }).lean();
-  return Promise.all(rows.map(async row => ({
+  const today = new Date(`${businessDateKey()}T00:00:00.000Z`);
+  const groups = new Map<string, any[]>();
+  for (const row of rows) {
+    const key = `${String(row.insuranceCompanyId?._id || row.insuranceCompanyId)}|${String(row.ownerTenantId?._id || row.ownerTenantId || "SHARED")}`;
+    groups.set(key, [...(groups.get(key) || []), row]);
+  }
+  const currentProducts = new Map<string, string[]>();
+  for (const group of groups.values()) {
+    const tenantId = group[0]?.ownerTenantId?._id ? String(group[0].ownerTenantId._id) : undefined;
+    const products = [...new Set(group.flatMap(p => p.productCoverage || []))];
+    for (const product of products) {
+      const current = choosePackageForDate(group, today, tenantId, product);
+      if (!current) continue;
+      const key = String(current._id);
+      currentProducts.set(key, [...new Set([...(currentProducts.get(key) || []), product])].sort());
+    }
+  }
+  return Promise.all(rows.map(async (row: any) => ({
     ...row,
+    effectiveTo: row.effectiveTo ?? null, // old explicit ends remain for historical audit
+    currentGrid: (currentProducts.get(String(row._id)) || []).length > 0,
+    currentProducts: currentProducts.get(String(row._id)) || [],
+    review: gridReviewState(row.effectiveFrom),
     documents: await GridDocument.find({ packageId: row._id }).select("fileName relativePath fileType role productScope required status rulesDetected rtoMappingsDetected").sort({ createdAt: 1 }).lean()
   })));
 }

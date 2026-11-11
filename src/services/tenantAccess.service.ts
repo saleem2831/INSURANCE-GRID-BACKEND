@@ -55,12 +55,12 @@ export async function tenantFirewall(req: Request, res: Response, next: NextFunc
   } catch(e) { return res.status(500).json({success:false,error:"AUTH_ERROR",message:"Unable to authenticate API key."}); }
 }
 
-/** A grant points to one exact ACTIVE package; tenant never resolves unrelated or legacy grids. */
+/** A grant points to an exact published package. Superseded versions remain readable for historical quotes, never other tenants. */
 export async function getTenantPackageMap(tenantId:string) {
   if (!mongoose.Types.ObjectId.isValid(tenantId)) throw new Error("Invalid tenantId");
   const grants=await TenantGridGrant.find({tenantId,enabled:true}).lean();
   const packageIds=grants.map(x=>x.packageId);
-  const packages=await GridPackage.find({_id:{$in:packageIds},status:"ACTIVE"}).lean();
+  const packages=await GridPackage.find({_id:{$in:packageIds},status:{$in:["ACTIVE","EXPIRED"]}}).lean();
   const byId=new Map(packages.map(p=>[String(p._id),p]));
   const map=new Map<string,string[]>();
   for(const grant of grants){

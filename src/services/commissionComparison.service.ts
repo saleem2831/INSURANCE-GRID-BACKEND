@@ -10,6 +10,7 @@ import { canonicalCompanyCode, INSURER_CODES } from "../config/insurers";
 import { syncInsurerCatalog } from "./insurerCatalog.service";
 import { mapWithConcurrency } from "../utils/asyncPool";
 import {getTenantPackageMap,tenancyEnabled, type TenantAuth} from "./tenantAccess.service";
+import { choosePackageForDate, resolveQuoteDate, gridReviewState } from "./gridVersionPolicy.service";
 
 export interface CommissionCompareInput {
   product: string;
@@ -433,8 +434,8 @@ export async function compareCommissions(input: CommissionCompareInput, access?:
     e.details = validation;
     throw e;
   }
-  const date = input.policyDate ? new Date(input.policyDate) : new Date();
-  if (Number.isNaN(date.getTime())) throw new Error("Invalid policyDate");
+  const quoteDate = resolveQuoteDate(input.policyDate);
+  const date = quoteDate.date;
 
   // The canonical JSON catalog is authoritative. Always evaluate every active
   // catalog company so the API returns a stable response row for every insurer.
@@ -454,31 +455,48 @@ export async function compareCommissions(input: CommissionCompareInput, access?:
   const results = await mapWithConcurrency(companies, concurrency, async (catalogCompany: any) => {
     const startedAt = Date.now();
     const companyResults: any[] = [];
+    let selectedPackageMetadata: any = null;
     try {
       // Keep the existing deterministic evaluation flow intact while each insurer
       // runs independently and asynchronously. `continue` exits this one-item loop.
       for (const company of [catalogCompany]) {
     const permittedPackageIds=allowed?.get(String(company._id)) || [];
-    const activePackage: any = await GridPackage.findOne({
+    const eligiblePackages: any[] = await GridPackage.find({
       insuranceCompanyId: company._id,
       ...(allowed ? { _id: { $in: permittedPackageIds } } : { ownerTenantId: null }),
-      status: "ACTIVE",
+      status: { $in: ["ACTIVE", "EXPIRED"] },
+      gridId: { $ne: null },
       effectiveFrom: { $lte: date },
       $or: [{ effectiveTo: null }, { effectiveTo: { $gte: date } }]
     }).sort({ effectiveFrom: -1, createdAt: -1 }).lean();
+    const activePackage: any = choosePackageForDate(eligiblePackages, date, access?.kind === "TENANT" ? access.tenantId : undefined, product);
+    if (activePackage) selectedPackageMetadata = {
+      packageId: activePackage._id,
+      gridVersion: activePackage.version,
+      gridEffectiveFrom: activePackage.effectiveFrom,
+      gridScope: activePackage.ownerTenantId ? "TENANT_OWNED" : "SHARED",
+      gridReview: gridReviewState(activePackage.effectiveFrom)
+    };
 
     let grids: any[] = [];
-    if (activePackage?.gridId) grids = await CommissionGrid.find({ _id: activePackage.gridId, insuranceCompanyId: company._id, status: "ACTIVE" }).lean();
+    if (activePackage?.gridId) grids = await CommissionGrid.find({ _id: activePackage.gridId, insuranceCompanyId: company._id, status: { $in: ["ACTIVE", "EXPIRED"] } }).lean();
     else if (!allowed) grids = await CommissionGrid.find({
       insuranceCompanyId: company._id,
-      status: "ACTIVE",
+      status: { $in: ["ACTIVE", "EXPIRED"] },
       packageId: null,
       effectiveFrom: { $lte: date },
       $or: [{ effectiveTo: null }, { effectiveTo: { $gte: date } }]
     }).sort({ effectiveFrom: -1, createdAt: -1 }).lean();
+    // Legacy multi-file insurers can have separate logicalKeys. Take only the
+    // newest effective grid of each key; never merge old and new versions.
+    if (!activePackage && grids.length > 1) {
+      const byKey = new Map<string, any>();
+      for (const grid of grids) if (!byKey.has(String(grid.logicalKey || "MOTOR_GRID"))) byKey.set(String(grid.logicalKey || "MOTOR_GRID"), grid);
+      grids = [...byKey.values()];
+    }
 
     if (!grids.length) {
-      companyResults.push({ companyCode: company.code, companyName: company.name, status: "NO_GRID", displayStatus: "NO ACTIVE GRID", percentage: null, message: "No ACTIVE company package/grid applicable for the policy date" });
+      companyResults.push({ companyCode: company.code, companyName: company.name, status: "NO_GRID", displayStatus: "NO ACTIVE GRID", percentage: null, message: "No approved, accessible grid applicable on the requested quote date" });
       continue;
     }
 
@@ -690,6 +708,7 @@ export async function compareCommissions(input: CommissionCompareInput, access?:
       message: "Insurer evaluation completed without a result row.",
       retryable: true
     };
+    if (selectedPackageMetadata) Object.assign(row, selectedPackageMetadata);
     row.evaluationMs = Date.now() - startedAt;
     return row;
   });
@@ -713,6 +732,9 @@ export async function compareCommissions(input: CommissionCompareInput, access?:
   const best = results.find(r => r.status === "MATCHED") ?? null;
   return {
     evaluatedAt: date,
+    quoteDate: quoteDate.key,
+    quoteDateDefaulted: quoteDate.wasDefaulted,
+    businessTimeZone: quoteDate.timeZone,
     product,
     inputValidation: validation,
     insurersChecked: companies.length,

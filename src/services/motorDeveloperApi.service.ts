@@ -1,6 +1,7 @@
 import type {TenantAuth} from "./tenantAccess.service";
 /** Developer-facing adapter for legacy V7 deterministic insurer comparison. */
 import motorMaster from "../config/motorInputMaster.json";
+import { resolveQuoteDate } from "./gridVersionPolicy.service";
 
 type CatalogItem = { id: number; code: string; label: string };
 type MotorItem = CatalogItem & { product: string; capacityDimension: string; vehicleAgeRequired: boolean };
@@ -110,7 +111,9 @@ export function validateMotorRequest(raw: unknown) {
   const policyDate = input.policy_date === undefined || input.policy_date === null || input.policy_date === "" ? undefined : clean(input.policy_date);
   if (policyDate && (!/^\d{4}-\d{2}-\d{2}$/.test(policyDate) || Number.isNaN(Date.parse(policyDate)) || new Date(`${policyDate}T00:00:00Z`).toISOString().slice(0,10) !== policyDate))
     error("policy_date", "INVALID_DATE", "Policy date must be a valid YYYY-MM-DD date.");
-  if (!policyDate) error("policy_date", "REQUIRED", "A policy date is required to select the correct effective insurer grids.");
+  // Date omitted is the current date in the configured business time zone.
+  // A caller can still explicitly request historical or future dates.
+  const quoteDate = !errors.some(x => x.field === "policy_date") ? resolveQuoteDate(policyDate) : null;
 
   if (input.ncb !== undefined && input.ncb !== null && (!isNonneg(input.ncb) || input.ncb > 100))
     error("ncb", "INVALID_NCB", "NCB must be a percentage from 0 to 100.");
@@ -148,12 +151,12 @@ export function validateMotorRequest(raw: unknown) {
     policy_type_id: policy.id, motor_type_id: motor.id, fuel_type_id: fuel.id,
     capacity_id: cap?.id ?? null, capacity_value: numericCapacity ?? null,
     rto: normalizedRto, vehicle_make: make, vehicle_age: age ?? null,
-    policy_date: policyDate, policy_type: policy.code, motor_type: motor.code,
+    policy_date: quoteDate?.key, policy_date_defaulted: quoteDate?.wasDefaulted, policy_type: policy.code, motor_type: motor.code,
     fuel_type: fuel.code, product: motor.product, capacity_dimension: dimension
   };
   const engineInput: Record<string, unknown> = {
     product: motor.product,
-    policyDate,
+    policyDate: quoteDate?.key,
     policyType: policy.enginePolicyType,
     fuelType: fuel.engineFuelType,
     make,

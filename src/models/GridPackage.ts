@@ -15,6 +15,7 @@ const GridPackageSchema = new Schema(
     replacesPackageId: { type: Schema.Types.ObjectId, ref: "GridPackage", default: null },
     version: { type: String, required: true, trim: true, uppercase: true, index: true },
     effectiveFrom: { type: Date, required: true, index: true },
+    previousEffectiveTo: { type: Date, default: null },
     effectiveTo: { type: Date, default: null, index: true },
     status: {
       type: String,

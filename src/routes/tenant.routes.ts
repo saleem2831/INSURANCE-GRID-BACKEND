@@ -71,14 +71,9 @@ router.post("/:tenantId/grants",async(req,res)=>{
   if(!tenant||!pkg)return error(res,404,"NOT_FOUND","Tenant or grid package not found");
   if(pkg.status!=="ACTIVE" || !pkg.gridId)return error(res,409,"PACKAGE_NOT_ACTIVE","Package must be ACTIVE with a committed grid");
   if(pkg.ownerTenantId&&String(pkg.ownerTenantId)!==tenantId)return error(res,403,"OWNER_MISMATCH","Tenant-owned package may only be assigned to its owner");
-  const grants=await TenantGridGrant.find({tenantId,insuranceCompanyId:pkg.insuranceCompanyId,enabled:true});
-  const others=await GridPackage.find({_id:{$in:grants.map(x=>x.packageId)},status:"ACTIVE"});
-  const end=(x:any)=>x.effectiveTo?new Date(x.effectiveTo).getTime():Infinity;
-  for(const other of others){
-    if(String(other._id)===packageId)continue;
-    if(new Date(other.effectiveFrom).getTime()<=end(pkg)&&new Date(pkg.effectiveFrom).getTime()<=end(other))
-      return error(res,409,"OVERLAPPING_PACKAGE","Tenant already has another active package for this insurer/effective period. Revoke the older grant first.");
-  }
+  // Multiple explicit version grants are intentional: the newest eligible version
+  // applies on its start date, but old grants remain for historical quotations.
+  // Tenant-owned packages override shared packages for the same insured risk.
   const grant=await TenantGridGrant.findOneAndUpdate({tenantId,packageId},{$set:{insuranceCompanyId:pkg.insuranceCompanyId,enabled:true}},{upsert:true,returnDocument:"after"});
   res.json({success:true,data:grant});
 });
@@ -95,7 +90,7 @@ router.get("/tenant/visible-packages",async(req,res)=>{
   if(!tenancyEnabled())return res.json({success:true,data:[],mode:"SINGLE"});
   if(!auth || auth.kind!=="TENANT")return error(res,403,"TENANT_ONLY","Tenant key required");
   const grants=await TenantGridGrant.find({tenantId:auth.tenantId,enabled:true}).lean();
-  const packages=await GridPackage.find({_id:{$in:grants.map(x=>x.packageId)},status:"ACTIVE"}).populate("insuranceCompanyId","code name").select("insuranceCompanyId ownerTenantId version effectiveFrom effectiveTo productCoverage totalRules status").lean();
+  const packages=await GridPackage.find({_id:{$in:grants.map(x=>x.packageId)},status:{$in:["ACTIVE","EXPIRED"]}}).populate("insuranceCompanyId","code name").select("insuranceCompanyId ownerTenantId version effectiveFrom effectiveTo productCoverage totalRules status").lean();
   res.json({success:true,data:packages.filter((p:any)=>!p.ownerTenantId||String(p.ownerTenantId)===auth.tenantId).map((p:any)=>({id:p._id,company:p.insuranceCompanyId,version:p.version,effectiveFrom:p.effectiveFrom,effectiveTo:p.effectiveTo,products:p.productCoverage,status:p.status}))});
 });
 export default router;

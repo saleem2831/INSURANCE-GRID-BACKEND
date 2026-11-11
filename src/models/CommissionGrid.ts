@@ -43,6 +43,7 @@ const CommissionGridSchema = new Schema(
       required: true
     },
 
+    previousEffectiveTo: { type: Date, default: null },
     effectiveTo: {
       type: Date,
       default: null
